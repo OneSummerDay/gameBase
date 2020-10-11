@@ -8,6 +8,7 @@ class Entity {
 	public var destroyed(default,null) = false;
 	public var ftime(get,never) : Float; inline function get_ftime() return game.ftime;
 	public var tmod(get,never) : Float; inline function get_tmod() return Game.ME.tmod;
+	public var hud(get,never) : ui.Hud; inline function get_hud() return Game.ME.hud;
 
 	public var cd : dn.Cooldown;
 
@@ -31,8 +32,10 @@ class Entity {
 	public var dir(default,set) = 1;
 	public var sprScaleX = 1.0;
 	public var sprScaleY = 1.0;
+	public var entityVisible = true;
 
     public var spr : HSprite;
+	public var colorAdd : h3d.Vector;
 	var debugLabel : Null<h2d.Text>;
 
 	public var footX(get,never) : Float; inline function get_footX() return (cx+xr)*Const.GRID;
@@ -42,6 +45,8 @@ class Entity {
 	public var centerX(get,never) : Float; inline function get_centerX() return footX;
 	public var centerY(get,never) : Float; inline function get_centerY() return footY-hei*0.5;
 
+	var actions : Array<{ id:String, cb:Void->Void, t:Float }> = [];
+
     public function new(x:Int, y:Int) {
         uid = Const.NEXT_UNIQ;
         ALL.push(this);
@@ -49,8 +54,9 @@ class Entity {
 		cd = new dn.Cooldown(Const.FPS);
         setPosCase(x,y);
 
-        spr = new HSprite();
+        spr = new HSprite(Assets.tiles);
         Game.ME.scroller.add(spr, Const.DP_MAIN);
+		spr.colorAdd = colorAdd = new h3d.Vector();
 		spr.setCenterRatio(0.5,1);
     }
 
@@ -91,25 +97,21 @@ class Entity {
 	}
 
 	public function is<T:Entity>(c:Class<T>) return Std.is(this, c);
-	public function as<T:Entity>(c:Class<T>) : T return Std.instance(this, c);
+	public function as<T:Entity>(c:Class<T>) : T return Std.downcast(this, c);
 
 	public inline function rnd(min,max,?sign) return Lib.rnd(min,max,sign);
 	public inline function irnd(min,max,?sign) return Lib.irnd(min,max,sign);
 	public inline function pretty(v,?p=1) return M.pretty(v,p);
 
 	public inline function dirTo(e:Entity) return e.centerX<centerX ? -1 : 1;
+	public inline function dirToAng() return dir==1 ? 0. : M.PI;
+	public inline function getMoveAng() return Math.atan2(dyTotal,dxTotal);
 
-	public inline function distCase(e:Entity) {
-		return M.dist(cx+xr, cy+yr, e.cx+e.xr, e.cy+e.yr);
-	}
+	public inline function distCase(e:Entity) return M.dist(cx+xr, cy+yr, e.cx+e.xr, e.cy+e.yr);
+	public inline function distCaseFree(tcx:Int, tcy:Int, ?txr=0.5, ?tyr=0.5) return M.dist(cx+xr, cy+yr, tcx+txr, tcy+tyr);
 
-	public inline function distPx(e:Entity) {
-		return M.dist(footX, footY, e.footX, e.footY);
-	}
-
-	public inline function distPxFree(x:Float, y:Float) {
-		return M.dist(footX, footY, x, y);
-	}
+	public inline function distPx(e:Entity) return M.dist(footX, footY, e.footX, e.footY);
+	public inline function distPxFree(x:Float, y:Float) return M.dist(footX, footY, x, y);
 
 	public function makePoint() return new CPoint(cx,cy, xr,yr);
 
@@ -123,6 +125,8 @@ class Entity {
     public function dispose() {
         ALL.remove(this);
 
+		colorAdd = null;
+
 		spr.remove();
 		spr = null;
 
@@ -135,7 +139,10 @@ class Entity {
 		cd = null;
     }
 
-	public inline function debug(?v:Dynamic) {
+	public inline function debugFloat(v:Float, ?c=0xffffff) {
+		debug( pretty(v), c );
+	}
+	public inline function debug(?v:Dynamic, ?c=0xffffff) {
 		#if debug
 		if( v==null && debugLabel!=null ) {
 			debugLabel.remove();
@@ -145,12 +152,64 @@ class Entity {
 			if( debugLabel==null )
 				debugLabel = new h2d.Text(Assets.fontTiny, Game.ME.scroller);
 			debugLabel.text = Std.string(v);
+			debugLabel.textColor = c;
 		}
 		#end
 	}
 
+	function chargeAction(id:String, sec:Float, cb:Void->Void) {
+		if( isChargingAction(id) )
+			cancelAction(id);
+		if( sec<=0 )
+			cb();
+		else
+			actions.push({ id:id, cb:cb, t:sec});
+	}
+
+	public function isChargingAction(?id:String) {
+		if( id==null )
+			return actions.length>0;
+
+		for(a in actions)
+			if( a.id==id )
+				return true;
+
+		return false;
+	}
+
+	public function cancelAction(?id:String) {
+		if( id==null )
+			actions = [];
+		else {
+			var i = 0;
+			while( i<actions.length ) {
+				if( actions[i].id==id )
+					actions.splice(i,1);
+				else
+					i++;
+			}
+		}
+	}
+
+	function updateActions() {
+		var i = 0;
+		while( i<actions.length ) {
+			var a = actions[i];
+			a.t -= tmod/Const.FPS;
+			if( a.t<=0 ) {
+				actions.splice(i,1);
+				if( isAlive() )
+					a.cb();
+			}
+			else
+				i++;
+		}
+	}
+
+
     public function preUpdate() {
 		cd.update(tmod);
+		updateActions();
     }
 
     public function postUpdate() {
@@ -158,20 +217,25 @@ class Entity {
         spr.y = (cy+yr)*Const.GRID;
         spr.scaleX = dir*sprScaleX;
         spr.scaleY = sprScaleY;
+		spr.visible = entityVisible;
 
 		if( debugLabel!=null ) {
 			debugLabel.x = Std.int(footX - debugLabel.textWidth*0.5);
 			debugLabel.y = Std.int(footY+1);
 		}
-    }
+	}
 
+	public function fixedUpdate() {} // runs at a "guaranteed" 30 fps
 
-    public function update() {
+    public function update() { // runs at an unknown fps
 		// X
 		var steps = M.ceil( M.fabs(dxTotal*tmod) );
 		var step = dxTotal*tmod / steps;
 		while( steps>0 ) {
 			xr+=step;
+
+			// [ add X collisions checks here ]
+
 			while( xr>1 ) { xr--; cx++; }
 			while( xr<0 ) { xr++; cx--; }
 			steps--;
@@ -186,6 +250,9 @@ class Entity {
 		var step = dyTotal*tmod / steps;
 		while( steps>0 ) {
 			yr+=step;
+
+			// [ add Y collisions checks here ]
+
 			while( yr>1 ) { yr--; cy++; }
 			while( yr<0 ) { yr++; cy--; }
 			steps--;

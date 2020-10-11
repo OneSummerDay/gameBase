@@ -12,7 +12,7 @@
                 "panel": "dedicated",
                 "clear": true
             },
-            "problemMatcher": ["$haxe"],
+            "problemMatcher": [ "$haxe-absolute", "$haxe", "$haxe-error", "$haxe-trace" ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -28,8 +28,9 @@
                 "panel": "dedicated",
                 "clear": true
             },
-            "problemMatcher": ["$haxe"],
+            "problemMatcher": [ "$haxe-absolute", "$haxe", "$haxe-error", "$haxe-trace" ],
         },
+
         {
             "label": "JS release",
             "type": "hxml",
@@ -39,8 +40,9 @@
                 "panel": "dedicated",
                 "clear": true
             },
-            "problemMatcher": ["$haxe"],
+            "problemMatcher": [ "$haxe-absolute", "$haxe", "$haxe-error", "$haxe-trace" ],
         },
+
         {
             "label": "Flash release",
             "type": "hxml",
@@ -50,8 +52,9 @@
                 "panel": "dedicated",
                 "clear": true
             },
-            "problemMatcher": ["$haxe"],
+            "problemMatcher": [ "$haxe-absolute", "$haxe", "$haxe-error", "$haxe-trace" ],
         },
+
         {
             "label": "Lang",
             "type": "hxml",
@@ -59,6 +62,18 @@
             "presentation": {
                 "reveal": "always",
                 "panel": "shared",
+                "clear": true
+            },
+            "problemMatcher": [ "$haxe-absolute", "$haxe", "$haxe-error", "$haxe-trace" ],
+        },
+
+        {
+            "label": "JS debug",
+            "type": "hxml",
+            "file": "js.debug.hxml",
+            "presentation": {
+                "reveal": "never",
+                "panel": "dedicated",
                 "clear": true
             },
             "problemMatcher": ["$haxe"],

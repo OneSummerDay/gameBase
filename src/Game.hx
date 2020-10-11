@@ -9,28 +9,35 @@ class Game extends Process {
 	public var camera : Camera;
 	public var scroller : h2d.Layers;
 	public var level : Level;
+	public var hud : ui.Hud;
 
 	public function new() {
 		super(Main.ME);
 		ME = this;
 		ca = Main.ME.controller.createAccess("game");
-		ca.leftDeadZone = 0.2;
-		ca.rightDeadZone = 0.2;
+		ca.setLeftDeadZone(0.2);
+		ca.setRightDeadZone(0.2);
 		createRootInLayers(Main.ME.root, Const.DP_BG);
 
 		scroller = new h2d.Layers();
-		if( Const.SCALE>1 )
-			scroller.filter = new h2d.filter.ColorMatrix(); // force pixel render
 		root.add(scroller, Const.DP_BG);
+		scroller.filter = new h2d.filter.ColorMatrix(); // force rendering for pixel perfect
 
 		camera = new Camera();
 		level = new Level();
 		fx = new Fx();
+		hud = new ui.Hud();
 
+		Process.resizeAll();
 		trace(Lang.t._("Game is ready."));
 	}
 
 	public function onCdbReload() {
+	}
+
+	override function onResize() {
+		super.onResize();
+		scroller.setScale(Const.SCALE);
 	}
 
 
@@ -52,14 +59,29 @@ class Game extends Process {
 		gc();
 	}
 
+	override function preUpdate() {
+		super.preUpdate();
+
+		for(e in Entity.ALL) if( !e.destroyed ) e.preUpdate();
+	}
+
+	override function postUpdate() {
+		super.postUpdate();
+
+		for(e in Entity.ALL) if( !e.destroyed ) e.postUpdate();
+		gc();
+	}
+
+	override function fixedUpdate() {
+		super.fixedUpdate();
+
+		for(e in Entity.ALL) if( !e.destroyed ) e.fixedUpdate();
+	}
+
 	override function update() {
 		super.update();
 
-		// Updates
-		for(e in Entity.ALL) if( !e.destroyed ) e.preUpdate();
 		for(e in Entity.ALL) if( !e.destroyed ) e.update();
-		for(e in Entity.ALL) if( !e.destroyed ) e.postUpdate();
-		gc();
 
 		if( !ui.Console.ME.isActive() && !ui.Modal.hasAny() ) {
 			#if hl
@@ -70,6 +92,10 @@ class Game extends Process {
 				else
 					hxd.System.exit();
 			#end
+
+			// Restart
+			if( ca.selectPressed() )
+				Main.ME.startGame();
 		}
 	}
 }

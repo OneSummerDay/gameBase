@@ -6,6 +6,8 @@ class Camera extends dn.Process {
 	public var dy : Float;
 	public var wid(get,never) : Int;
 	public var hei(get,never) : Int;
+	var bumpOffX = 0.;
+	var bumpOffY = 0.;
 
 	public function new() {
 		super(Game.ME);
@@ -19,6 +21,16 @@ class Camera extends dn.Process {
 
 	function get_hei() {
 		return M.ceil( Game.ME.h() / Const.SCALE );
+	}
+
+	public function trackTarget(e:Entity, immediate:Bool) {
+		target = e;
+		if( immediate )
+			recenter();
+	}
+
+	public inline function stopTracking() {
+		target = null;
 	}
 
 	public function recenter() {
@@ -63,6 +75,16 @@ class Camera extends dn.Process {
 		dy *= Math.pow(frict,tmod);
 	}
 
+	public inline function bumpAng(a, dist) {
+		bumpOffX+=Math.cos(a)*dist;
+		bumpOffY+=Math.sin(a)*dist;
+	}
+
+	public inline function bump(x,y) {
+		bumpOffX+=x;
+		bumpOffY+=y;
+	}
+
 
 	override function postUpdate() {
 		super.postUpdate();
@@ -81,21 +103,33 @@ class Camera extends dn.Process {
 			else
 				scroller.y = hei*0.5 - level.hei*0.5*Const.GRID;
 
-			// Shakes
-			if( cd.has("shaking") ) {
-				scroller.x += Math.cos(ftime*1.1)*1*Const.SCALE*shakePower * cd.getRatio("shaking");
-				scroller.y += Math.sin(0.3+ftime*0.33)*1*Const.SCALE*shakePower * cd.getRatio("shaking");
-			}
-
 			// Clamp
 			if( wid<level.wid*Const.GRID)
 				scroller.x = M.fclamp(scroller.x, wid-level.wid*Const.GRID, 0);
 			if( hei<level.hei*Const.GRID)
 				scroller.y = M.fclamp(scroller.y, hei-level.hei*Const.GRID, 0);
 
+			// Bumps friction
+			bumpOffX *= Math.pow(0.75, tmod);
+			bumpOffY *= Math.pow(0.75, tmod);
+
+			// Bump
+			scroller.x += bumpOffX;
+			scroller.y += bumpOffY;
+
+			// Shakes
+			if( cd.has("shaking") ) {
+				scroller.x += Math.cos(ftime*1.1)*2.5*shakePower * cd.getRatio("shaking");
+				scroller.y += Math.sin(0.3+ftime*1.7)*2.5*shakePower * cd.getRatio("shaking");
+			}
+
+			// Scaling
+			scroller.x*=Const.SCALE;
+			scroller.y*=Const.SCALE;
+
 			// Rounding
-			scroller.x = Std.int(scroller.x);
-			scroller.y = Std.int(scroller.y);
+			scroller.x = M.round(scroller.x);
+			scroller.y = M.round(scroller.y);
 		}
 	}
 }

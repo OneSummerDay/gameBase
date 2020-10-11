@@ -11,7 +11,6 @@ class Main extends dn.Process {
 		ME = this;
 
         createRoot(s);
-        root.filter = new h2d.filter.ColorMatrix(); // force rendering for pixel perfect
 
 		// Engine settings
 		hxd.Timer.wantedFPS = Const.FPS;
@@ -21,10 +20,10 @@ class Main extends dn.Process {
         #end
 
 		// Resources
-		#if debug
+		#if(hl && debug)
 		hxd.Res.initLocal();
         #else
-        hxd.Res.initEmbed({compressSounds:true});
+        hxd.Res.initEmbed();
         #end
 
         // Hot reloading
@@ -42,12 +41,10 @@ class Main extends dn.Process {
 		#end
 
 		// Assets & data init
-		Lang.init("en");
 		Assets.init();
-		Data.load( hxd.Res.data.entry.getText() );
-
-		// Console
 		new ui.Console(Assets.fontTiny, s);
+		Lang.init("en");
+		Data.load( hxd.Res.data.entry.getText() );
 
 		// Game controller
 		controller = new dn.heaps.Controller(s);
@@ -68,9 +65,9 @@ class Main extends dn.Process {
 	public function startGame() {
 		if( Game.ME!=null ) {
 			Game.ME.destroy();
-			delayer.addS(function() {
+			delayer.addF(function() {
 				new Game();
-			},0.1);
+			}, 1);
 		}
 		else
 			new Game();
@@ -81,14 +78,15 @@ class Main extends dn.Process {
 
 		// Auto scaling
 		if( Const.AUTO_SCALE_TARGET_WID>0 )
-			Const.SCALE = M.ceil( h()/Const.AUTO_SCALE_TARGET_WID );
+			Const.SCALE = M.ceil( w()/Const.AUTO_SCALE_TARGET_WID );
 		else if( Const.AUTO_SCALE_TARGET_HEI>0 )
 			Const.SCALE = M.ceil( h()/Const.AUTO_SCALE_TARGET_HEI );
-		root.setScale(Const.SCALE);
+
+		Const.UI_SCALE = Const.SCALE;
 	}
 
     override function update() {
-		dn.heaps.slib.SpriteLib.TMOD = tmod;
+		Assets.tiles.tmod = tmod;
         super.update();
     }
 }
